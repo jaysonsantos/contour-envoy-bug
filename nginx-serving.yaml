@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-serve-test
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: nginx-serve-test
+  template:
+    metadata:
+      labels:
+        app: nginx-serve-test
+    spec:
+      imagePullSecrets:
+        - name: docker-hub-secret
+      containers:
+      - name: nginx-serve-test
+        image: nginx:1.19.5-alpine
+        command:
+          - sh
+          - -exc
+          - |
+            dd if=/dev/urandom of=/usr/share/nginx/html/bin-data bs=102400 count=10000
+            nginx -g 'daemon off;'
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+        ports:
+        - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-serve-test
+  namespace: default
+spec:
+  selector:
+    app: nginx-serve-test
+  ports:
+  - port: 80
+    targetPort: 80
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: nginx-serve-test
+  namespace: default
+spec:
+  virtualhost:
+    fqdn: nginx-serve-test
+  routes:
+    - services:
+      - name: nginx-serve-test
+        port: 80
